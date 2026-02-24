@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Neon Core Rush</title>
   <style>
     :root {
@@ -32,6 +32,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      overscroll-behavior: none;
       color: var(--ink);
       font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
       background: radial-gradient(circle at 20% 15%, #12345d 0%, transparent 45%),
@@ -77,11 +78,20 @@
       display: block;
       z-index: 1;
       cursor: crosshair;
+      touch-action: none;
+    }
+
+    body.touchUi canvas {
+      cursor: default;
     }
 
     .hud {
       position: fixed;
-      inset: 14px 14px auto 14px;
+      inset:
+        calc(env(safe-area-inset-top, 0px) + 14px)
+        calc(env(safe-area-inset-right, 0px) + 14px)
+        auto
+        calc(env(safe-area-inset-left, 0px) + 14px);
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 12px;
@@ -398,6 +408,132 @@
       color: var(--cyan);
     }
 
+    .touchControls {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 3;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      padding:
+        12px
+        calc(env(safe-area-inset-right, 0px) + 12px)
+        calc(env(safe-area-inset-bottom, 0px) + 12px)
+        calc(env(safe-area-inset-left, 0px) + 12px);
+      pointer-events: none;
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    body.touchUi.touchUiVisible .touchControls {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .touchGroup {
+      pointer-events: none;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .dpad {
+      width: min(42vw, 190px);
+      min-width: 150px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .dpadSpacer {
+      pointer-events: none;
+    }
+
+    .touchBtn {
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+        rgba(5, 12, 20, 0.68);
+      color: var(--ink);
+      border-radius: 16px;
+      min-width: 48px;
+      min-height: 48px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 12px 26px rgba(0,0,0,0.22);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.08s ease;
+      padding: 0;
+    }
+
+    .touchBtn:active,
+    .touchBtn.isActive {
+      transform: scale(0.97);
+      box-shadow:
+        inset 0 0 0 1px rgba(94,242,255,0.2),
+        0 8px 18px rgba(0,0,0,0.24);
+      background:
+        linear-gradient(180deg, rgba(94,242,255,0.16), rgba(255,255,255,0.03)),
+        rgba(5, 12, 20, 0.76);
+    }
+
+    .dpadBtn {
+      aspect-ratio: 1;
+      font-size: 18px;
+      font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+    }
+
+    .dashBtn {
+      width: min(30vw, 138px);
+      min-width: 104px;
+      aspect-ratio: 1 / 1;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(125,255,153,0.2), rgba(255,255,255,0.03)),
+        rgba(5, 14, 18, 0.75);
+      border-color: rgba(125,255,153,0.28);
+      box-shadow:
+        inset 0 0 0 1px rgba(125,255,153,0.08),
+        0 14px 26px rgba(0,0,0,0.26);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+      font-size: 14px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .dashBtn strong {
+      font-size: 19px;
+      letter-spacing: 0.08em;
+      color: var(--lime);
+      text-shadow: 0 0 12px rgba(125,255,153,0.3);
+    }
+
+    .dashBtn small {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+    }
+
     @media (max-width: 860px) {
       .hud {
         grid-template-columns: 1fr;
@@ -434,6 +570,37 @@
         padding: 18px;
         border-radius: 18px;
       }
+
+      .touchControls {
+        gap: 10px;
+        padding-inline:
+          calc(env(safe-area-inset-left, 0px) + 10px)
+          calc(env(safe-area-inset-right, 0px) + 10px);
+      }
+
+      .dpad {
+        width: min(48vw, 176px);
+        min-width: 140px;
+        gap: 6px;
+      }
+
+      .touchBtn {
+        border-radius: 14px;
+        min-width: 44px;
+        min-height: 44px;
+      }
+
+      .dashBtn {
+        width: min(32vw, 118px);
+        min-width: 94px;
+        border-radius: 18px;
+      }
+    }
+
+    @media (max-height: 720px) and (pointer: coarse) {
+      .hintCard {
+        display: none;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -445,7 +612,9 @@
       .waveBanner,
       .overlay,
       button,
-      .healthFill {
+      .healthFill,
+      .touchControls,
+      .touchBtn {
         transition: none;
       }
     }
@@ -488,8 +657,30 @@
         <strong>Move</strong> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows,
         <strong>Dash</strong> <kbd>Space</kbd>,
         <strong>Aim</strong> mouse.
-        Auto-fire tracks nearby threats.
+        Mobile: on-screen d-pad + dash button. Auto-fire tracks nearby threats.
       </div>
+    </div>
+  </div>
+
+  <div class="touchControls" id="touchControls" aria-hidden="true" aria-label="Mobile touch controls">
+    <div class="touchGroup">
+      <div class="dpad" role="group" aria-label="Movement controls">
+        <span class="dpadSpacer"></span>
+        <button class="touchBtn dpadBtn" type="button" data-touch-key="ArrowUp" aria-label="Move up">▲</button>
+        <span class="dpadSpacer"></span>
+        <button class="touchBtn dpadBtn" type="button" data-touch-key="ArrowLeft" aria-label="Move left">◀</button>
+        <span class="dpadSpacer"></span>
+        <button class="touchBtn dpadBtn" type="button" data-touch-key="ArrowRight" aria-label="Move right">▶</button>
+        <span class="dpadSpacer"></span>
+        <button class="touchBtn dpadBtn" type="button" data-touch-key="ArrowDown" aria-label="Move down">▼</button>
+        <span class="dpadSpacer"></span>
+      </div>
+    </div>
+    <div class="touchGroup">
+      <button class="touchBtn dashBtn" id="touchDashBtn" type="button" aria-label="Dash">
+        <strong>Dash</strong>
+        <small>tap</small>
+      </button>
     </div>
   </div>
 
@@ -507,6 +698,7 @@
         <div><strong>Move:</strong> WASD or Arrow keys</div>
         <div><strong>Aim:</strong> Move mouse</div>
         <div><strong>Dash:</strong> Space (brief invulnerability)</div>
+        <div><strong>Mobile:</strong> Virtual d-pad + Dash button</div>
         <div><strong>Restart:</strong> Enter after game over</div>
       </div>
       <div class="actions">
@@ -567,7 +759,10 @@
         menuMuteBtn: document.getElementById("menuMuteBtn"),
         finalScore: document.getElementById("finalScore"),
         finalCombo: document.getElementById("finalCombo"),
-        bestScore: document.getElementById("bestScore")
+        bestScore: document.getElementById("bestScore"),
+        touchControls: document.getElementById("touchControls"),
+        touchDashBtn: document.getElementById("touchDashBtn"),
+        touchMoveButtons: Array.from(document.querySelectorAll("[data-touch-key]"))
       };
 
       const FX = {
@@ -576,13 +771,17 @@
 
       const input = {
         keys: Object.create(null),
+        touchKeys: Object.create(null),
+        touchPointers: new Map(),
         mouseX: window.innerWidth * 0.5,
         mouseY: window.innerHeight * 0.5,
         pointerActive: false,
-        dashQueued: false
+        dashQueued: false,
+        touchMode: false
       };
 
       const world = { w: window.innerWidth, h: window.innerHeight, dpr: 1 };
+      const coarsePointerQuery = window.matchMedia ? window.matchMedia("(pointer: coarse)") : null;
 
       const stars = Array.from({ length: 90 }, () => ({
         x: Math.random(),
@@ -603,6 +802,7 @@
       let lastFrame = performance.now();
       let bannerTimeout = 0;
       let rafId = 0;
+      const dashTouchPointers = new Set();
 
       function rand(min, max) {
         return Math.random() * (max - min) + min;
@@ -622,9 +822,88 @@
         return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
       }
 
+      function getViewportSize() {
+        const viewport = window.visualViewport;
+        const width = viewport ? viewport.width : window.innerWidth;
+        const height = viewport ? viewport.height : window.innerHeight;
+        return {
+          w: Math.max(1, Math.floor(width || window.innerWidth || 1)),
+          h: Math.max(1, Math.floor(height || window.innerHeight || 1))
+        };
+      }
+
+      function isPressed(code) {
+        return !!(input.keys[code] || input.touchKeys[code]);
+      }
+
+      function getMoveInput() {
+        let x = 0;
+        let y = 0;
+        if (isPressed("KeyW") || isPressed("ArrowUp")) y -= 1;
+        if (isPressed("KeyS") || isPressed("ArrowDown")) y += 1;
+        if (isPressed("KeyA") || isPressed("ArrowLeft")) x -= 1;
+        if (isPressed("KeyD") || isPressed("ArrowRight")) x += 1;
+        return { x, y };
+      }
+
+      function clearTouchInputs() {
+        input.touchPointers.clear();
+        dashTouchPointers.clear();
+        Object.keys(input.touchKeys).forEach((code) => {
+          input.touchKeys[code] = false;
+        });
+        ui.touchMoveButtons.forEach((button) => {
+          button.classList.remove("isActive");
+        });
+        ui.touchDashBtn.classList.remove("isActive");
+      }
+
+      function syncTouchControls() {
+        const visible = !!(input.touchMode && game && game.mode === "running");
+        document.body.classList.toggle("touchUi", input.touchMode);
+        document.body.classList.toggle("touchUiVisible", visible);
+        ui.touchControls.setAttribute("aria-hidden", visible ? "false" : "true");
+      }
+
+      function refreshTouchMode() {
+        const hasTouchPoints = (navigator.maxTouchPoints || 0) > 0;
+        const coarsePointer = coarsePointerQuery ? coarsePointerQuery.matches : false;
+        const nextTouchMode = hasTouchPoints || coarsePointer;
+        if (nextTouchMode !== input.touchMode) {
+          input.touchMode = nextTouchMode;
+          if (!input.touchMode) {
+            clearTouchInputs();
+            input.pointerActive = false;
+          }
+        }
+        syncTouchControls();
+      }
+
+      function setTouchKey(code, pressed) {
+        input.touchKeys[code] = pressed;
+        ui.touchMoveButtons.forEach((button) => {
+          if (button.dataset.touchKey === code) {
+            button.classList.toggle("isActive", pressed);
+          }
+        });
+      }
+
+      function releaseTouchPointer(pointerId) {
+        const keyCode = input.touchPointers.get(pointerId);
+        if (!keyCode) return;
+        input.touchPointers.delete(pointerId);
+
+        let stillPressed = false;
+        input.touchPointers.forEach((code) => {
+          if (code === keyCode) stillPressed = true;
+        });
+        if (!stillPressed) setTouchKey(keyCode, false);
+      }
+
       function resize() {
-        world.w = window.innerWidth;
-        world.h = window.innerHeight;
+        const viewport = getViewportSize();
+        world.w = viewport.w;
+        world.h = viewport.h;
         world.dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.floor(world.w * world.dpr);
         canvas.height = Math.floor(world.h * world.dpr);
@@ -633,8 +912,10 @@
         ctx.setTransform(world.dpr, 0, 0, world.dpr, 0, 0);
 
         if (game && game.player) {
-          game.player.x = clamp(game.player.x, 26, world.w - 26);
-          game.player.y = clamp(game.player.y, 26, world.h - 26);
+          const maxX = Math.max(26, world.w - 26);
+          const maxY = Math.max(26, world.h - 26);
+          game.player.x = clamp(game.player.x, 26, maxX);
+          game.player.y = clamp(game.player.y, 26, maxY);
         }
       }
 
@@ -689,6 +970,7 @@
         showWaveBanner("Wave 1");
         ui.menuOverlay.classList.remove("show");
         ui.gameOverOverlay.classList.remove("show");
+        syncTouchControls();
         updateHud();
       }
 
@@ -696,6 +978,7 @@
         game = freshGameState();
         ui.menuOverlay.classList.add("show");
         ui.gameOverOverlay.classList.remove("show");
+        syncTouchControls();
         updateHud();
       }
 
@@ -715,6 +998,7 @@
         ui.finalCombo.textContent = "x" + (1 + game.longestCombo * 0.18).toFixed(1);
         ui.bestScore.textContent = String(Math.floor(bestScore));
         ui.gameOverOverlay.classList.add("show");
+        syncTouchControls();
       }
 
       function showWaveBanner(text) {
@@ -943,12 +1227,9 @@
         const p = game.player;
         if (p.dashCooldown > 0 || p.dashTime > 0) return;
 
-        let dx = 0;
-        let dy = 0;
-        if (input.keys.KeyW || input.keys.ArrowUp) dy -= 1;
-        if (input.keys.KeyS || input.keys.ArrowDown) dy += 1;
-        if (input.keys.KeyA || input.keys.ArrowLeft) dx -= 1;
-        if (input.keys.KeyD || input.keys.ArrowRight) dx += 1;
+        const move = getMoveInput();
+        let dx = move.x;
+        let dy = move.y;
 
         if (!dx && !dy) {
           dx = input.mouseX - p.x;
@@ -1094,12 +1375,9 @@
           showWaveBanner("Wave " + game.wave);
         }
 
-        let moveX = 0;
-        let moveY = 0;
-        if (input.keys.KeyW || input.keys.ArrowUp) moveY -= 1;
-        if (input.keys.KeyS || input.keys.ArrowDown) moveY += 1;
-        if (input.keys.KeyA || input.keys.ArrowLeft) moveX -= 1;
-        if (input.keys.KeyD || input.keys.ArrowRight) moveX += 1;
+        const moveInput = getMoveInput();
+        let moveX = moveInput.x;
+        let moveY = moveInput.y;
         const moving = moveX !== 0 || moveY !== 0;
 
         if (moving) {
@@ -1710,6 +1988,48 @@
         }
       }
 
+      ui.touchMoveButtons.forEach((button) => {
+        const onRelease = (event) => {
+          releaseTouchPointer(event.pointerId);
+        };
+
+        button.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          refreshTouchMode();
+          const keyCode = button.dataset.touchKey;
+          if (!keyCode) return;
+          input.touchPointers.set(event.pointerId, keyCode);
+          setTouchKey(keyCode, true);
+          if (button.setPointerCapture) {
+            try { button.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
+          }
+        });
+        button.addEventListener("pointerup", onRelease);
+        button.addEventListener("pointercancel", onRelease);
+        button.addEventListener("lostpointercapture", onRelease);
+        button.addEventListener("contextmenu", (event) => event.preventDefault());
+      });
+
+      const releaseDashTouch = (event) => {
+        dashTouchPointers.delete(event.pointerId);
+        ui.touchDashBtn.classList.toggle("isActive", dashTouchPointers.size > 0);
+      };
+
+      ui.touchDashBtn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        refreshTouchMode();
+        dashTouchPointers.add(event.pointerId);
+        ui.touchDashBtn.classList.add("isActive");
+        if (ui.touchDashBtn.setPointerCapture) {
+          try { ui.touchDashBtn.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
+        }
+        if (game && game.mode === "running") queueDash();
+      });
+      ui.touchDashBtn.addEventListener("pointerup", releaseDashTouch);
+      ui.touchDashBtn.addEventListener("pointercancel", releaseDashTouch);
+      ui.touchDashBtn.addEventListener("lostpointercapture", releaseDashTouch);
+      ui.touchDashBtn.addEventListener("contextmenu", (event) => event.preventDefault());
+
       window.addEventListener("keydown", (event) => {
         preventScrollKeys(event);
         input.keys[event.code] = true;
@@ -1740,9 +2060,20 @@
         input.mouseX = event.clientX - rect.left;
         input.mouseY = event.clientY - rect.top;
         input.pointerActive = true;
+        if (event.pointerType === "touch" || event.pointerType === "pen") {
+          refreshTouchMode();
+        }
       });
 
       canvas.addEventListener("pointerleave", () => {
+        input.pointerActive = false;
+      });
+
+      canvas.addEventListener("pointerup", (event) => {
+        if (event.pointerType !== "mouse") input.pointerActive = false;
+      });
+
+      canvas.addEventListener("pointercancel", () => {
         input.pointerActive = false;
       });
 
@@ -1755,11 +2086,22 @@
       });
 
       window.addEventListener("resize", resize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resize);
+        window.visualViewport.addEventListener("scroll", resize);
+      }
+      if (coarsePointerQuery) {
+        if (coarsePointerQuery.addEventListener) coarsePointerQuery.addEventListener("change", refreshTouchMode);
+        else if (coarsePointerQuery.addListener) coarsePointerQuery.addListener(refreshTouchMode);
+      }
       window.addEventListener("blur", () => {
         Object.keys(input.keys).forEach((k) => { input.keys[k] = false; });
         input.dashQueued = false;
+        input.pointerActive = false;
+        clearTouchInputs();
       });
 
+      refreshTouchMode();
       resize();
       backToMenu();
       updateHud();
