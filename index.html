@@ -584,12 +584,20 @@
 
       const world = { w: window.innerWidth, h: window.innerHeight, dpr: 1 };
 
-      const stars = Array.from({ length: 90 }, () => ({
-        x: Math.random(),
-        y: Math.random(),
-        z: 0.15 + Math.random() * 0.85,
-        size: 0.5 + Math.random() * 1.7
-      }));
+      const stars = Array.from({ length: 140 }, (_, i) => {
+        const depthSeed = Math.pow(Math.random(), 0.58);
+        const depth = 0.12 + depthSeed * 0.88;
+        return {
+          x: Math.random(),
+          y: Math.random(),
+          depth,
+          size: 0.4 + depth * 2.4,
+          speed: 4 + depth * 30,
+          sway: 0.4 + depth * 1.5,
+          phase: Math.random() * Math.PI * 2,
+          hue: 190 + Math.round((Math.random() - 0.5) * 26) + (i % 7 === 0 ? 10 : 0)
+        };
+      });
 
       const bestScoreKey = "neon-core-rush-best-score";
       let bestScore = 0;
@@ -614,6 +622,10 @@
 
       function lerp(a, b, t) {
         return a + (b - a) * t;
+      }
+
+      function wrap(value, span) {
+        return ((value % span) + span) % span;
       }
 
       function fmtTime(seconds) {
@@ -653,6 +665,7 @@
           dashTime: 0,
           invuln: 0,
           trail: [],
+          trailEmit: 0,
           hitFlash: 0
         };
       }
@@ -671,6 +684,8 @@
           spawnTimer: 0.55,
           spawnBudget: 0,
           shake: 0,
+          shakeBiasX: 0,
+          shakeBiasY: 0,
           heat: 0,
           player: makePlayer(),
           enemies: [],
@@ -749,6 +764,19 @@
         }
       }
 
+      function addScreenShake(amount, biasX = 0, biasY = 0) {
+        if (!game) return;
+        game.shake = Math.max(game.shake, amount);
+        const len = Math.hypot(biasX, biasY);
+        if (len > 0.001) {
+          const force = Math.min(9, amount * 0.55);
+          game.shakeBiasX += (biasX / len) * force;
+          game.shakeBiasY += (biasY / len) * force;
+          game.shakeBiasX = clamp(game.shakeBiasX, -18, 18);
+          game.shakeBiasY = clamp(game.shakeBiasY, -18, 18);
+        }
+      }
+
       function addRipple(x, y, opts = {}) {
         game.ripples.push({
           x,
@@ -775,6 +803,103 @@
           pulse: rand(0, Math.PI * 2),
           hue: baseHue
         });
+      }
+
+      function spawnPlayerTrailParticles(dt) {
+        if (!game || !game.player) return;
+        const p = game.player;
+        const speed = Math.hypot(p.vx, p.vy);
+        const active = p.dashTime > 0 || speed > 36;
+        if (!active) return;
+
+        const rate = p.dashTime > 0
+          ? (FX.full ? 150 : 78)
+          : (FX.full ? 46 : 22);
+        p.trailEmit += rate * dt;
+
+        const tailAngle = p.angle + Math.PI;
+        const tailX = Math.cos(tailAngle);
+        const tailY = Math.sin(tailAngle);
+        const anchorX = p.x + tailX * (p.r - 2);
+        const anchorY = p.y + tailY * (p.r - 2);
+
+        while (p.trailEmit >= 1) {
+          p.trailEmit -= 1;
+          const spread = p.dashTime > 0 ? 0.85 : 0.48;
+          const ang = tailAngle + rand(-spread, spread);
+          const thrust = p.dashTime > 0 ? rand(90, 190) : rand(28, 88);
+          const life = p.dashTime > 0 ? rand(0.16, 0.34) : rand(0.1, 0.22);
+          game.particles.push({
+            x: anchorX + rand(-3, 3),
+            y: anchorY + rand(-3, 3),
+            vx: Math.cos(ang) * thrust - p.vx * (p.dashTime > 0 ? 0.16 : 0.1),
+            vy: Math.sin(ang) * thrust - p.vy * (p.dashTime > 0 ? 0.16 : 0.1),
+            size: p.dashTime > 0 ? rand(1.8, 3.9) : rand(1.1, 2.6),
+            life,
+            maxLife: life,
+            hue: p.dashTime > 0 ? 142 + rand(-10, 12) : 192 + rand(-14, 10),
+            sat: 96,
+            light: p.dashTime > 0 ? 70 : 66,
+            drag: p.dashTime > 0 ? 5.5 : 7
+          });
+        }
+      }
+
+      function spawnEnemyExplosion(enemy, byDash) {
+        const radiusScale = clamp(enemy.r / 16, 0.65, 1.75);
+        const burstCount = Math.round((FX.full ? 20 : 10) * radiusScale + (byDash ? 8 : 0));
+        const sparkCount = Math.round((FX.full ? 10 : 5) * radiusScale);
+
+        spawnParticle(enemy.x, enemy.y, {
+          count: burstCount,
+          speed: byDash ? 260 : 200,
+          size: byDash ? 4.6 : 3.4,
+          life: 0.58,
+          hue: enemy.hue,
+          light: 68,
+          drag: 2.1
+        });
+
+        spawnParticle(enemy.x, enemy.y, {
+          count: Math.max(4, Math.round(6 * radiusScale)),
+          speed: byDash ? 120 : 90,
+          size: 2.6,
+          life: 0.22,
+          hue: 42 + rand(-8, 8),
+          sat: 100,
+          light: 74,
+          drag: 7
+        });
+
+        for (let i = 0; i < sparkCount; i += 1) {
+          const sparkAngle = rand(0, Math.PI * 2);
+          spawnParticle(enemy.x, enemy.y, {
+            count: 1,
+            angle: sparkAngle,
+            speed: rand(byDash ? 190 : 130, byDash ? 360 : 250),
+            size: rand(1.2, 2.2),
+            life: rand(0.18, 0.38),
+            hue: enemy.hue + rand(-24, 24),
+            sat: 100,
+            light: 76,
+            drag: 4.4
+          });
+        }
+
+        if (FX.full) {
+          spawnParticle(enemy.x, enemy.y, {
+            count: Math.round(4 + radiusScale * 5),
+            speed: 70,
+            size: 4.8,
+            life: 0.34,
+            hue: enemy.hue + rand(-10, 10),
+            sat: 55,
+            light: 42,
+            drag: 8
+          });
+        }
+
+        addScreenShake((byDash ? 4.8 : 2.8) + enemy.r * 0.08);
       }
 
       function currentWaveFromTime() {
@@ -965,7 +1090,7 @@
         p.dashCooldown = 0.95;
         p.invuln = Math.max(p.invuln, 0.25);
 
-        game.shake = Math.max(game.shake, 8);
+        addScreenShake(8, -dx, -dy);
         game.heat = Math.min(1, game.heat + 0.12);
         addRipple(p.x, p.y, { r: 10, dr: 260, life: 0.33, color: "rgba(125,255,153,0.65)", line: 2.4 });
         spawnParticle(p.x, p.y, {
@@ -985,7 +1110,7 @@
         p.hp -= amount;
         p.invuln = 0.9;
         p.hitFlash = 0.22;
-        game.shake = Math.max(game.shake, amount >= 2 ? 14 : 10);
+        addScreenShake(amount >= 2 ? 14 : 10, source ? (p.x - source.x) : 0, source ? (p.y - source.y) : 0);
         game.combo = Math.max(0, Math.floor(game.combo * 0.35));
         game.comboTimer = Math.min(game.comboTimer, 0.9);
         game.heat = Math.min(1, game.heat + 0.22);
@@ -1028,14 +1153,7 @@
         if (game.combo > game.longestCombo) game.longestCombo = game.combo;
         game.heat = Math.min(1, game.heat + (byDash ? 0.12 : 0.06));
 
-        spawnParticle(enemy.x, enemy.y, {
-          count: FX.full ? 16 : 8,
-          speed: byDash ? 260 : 200,
-          size: byDash ? 4.4 : 3.2,
-          life: 0.55,
-          hue: enemy.hue,
-          light: 66
-        });
+        spawnEnemyExplosion(enemy, byDash);
         addRipple(enemy.x, enemy.y, {
           r: enemy.r * 0.65,
           dr: 180 + enemy.r * 2.5,
@@ -1087,6 +1205,8 @@
         game.time += dt;
         game.heat = Math.max(0, game.heat - dt * 0.08);
         game.shake = Math.max(0, game.shake - dt * 18);
+        game.shakeBiasX *= Math.exp(-11 * dt);
+        game.shakeBiasY *= Math.exp(-11 * dt);
 
         const nextWave = currentWaveFromTime();
         if (nextWave !== game.wave) {
@@ -1148,6 +1268,8 @@
         if (p.x > world.w - margin) { p.x = world.w - margin; p.vx = -Math.abs(p.vx) * 0.35; }
         if (p.y < margin) { p.y = margin; p.vy = Math.abs(p.vy) * 0.35; }
         if (p.y > world.h - margin) { p.y = world.h - margin; p.vy = -Math.abs(p.vy) * 0.35; }
+
+        spawnPlayerTrailParticles(dt);
 
         p.fireCooldown -= dt;
         const fireRate = p.dashTime > 0 ? 0.07 : 0.12;
@@ -1408,13 +1530,36 @@
         ctx.restore();
 
         ctx.save();
+        const px = game && game.player ? game.player.x : world.w * 0.5;
+        const py = game && game.player ? game.player.y : world.h * 0.5;
+        const lookX = px - world.w * 0.5;
+        const lookY = py - world.h * 0.5;
         for (let i = 0; i < stars.length; i += 1) {
           const s = stars[i];
-          const x = (s.x * world.w + (t * (8 + s.z * 16)) % (world.w + 80)) % (world.w + 80) - 40;
-          const y = (s.y * world.h + Math.sin(t * (0.6 + s.z) + i) * 8 * s.z);
-          const alpha = 0.2 + 0.45 * s.z;
-          ctx.fillStyle = "rgba(190, 225, 255, " + alpha.toFixed(3) + ")";
-          ctx.fillRect(x, y, s.size, s.size);
+          const depth = s.depth;
+          const pad = 50 + depth * 65;
+          const spanX = world.w + pad * 2;
+          const spanY = world.h + pad * 2;
+          const driftX = t * s.speed;
+          const driftY = Math.sin(t * s.sway + s.phase) * (6 + depth * 10);
+          const x = wrap(s.x * spanX + driftX - lookX * depth * 0.24, spanX) - pad;
+          const y = wrap(s.y * spanY + driftY - lookY * depth * 0.18, spanY) - pad;
+          const twinkle = 0.7 + Math.sin(t * (1.05 + depth * 2.2) + s.phase) * 0.3;
+          const alpha = (0.08 + depth * 0.48) * twinkle * (FX.full ? 1 : 0.7);
+          const size = s.size * (0.92 + twinkle * 0.22);
+          ctx.fillStyle = "hsla(" + s.hue + ", 78%, " + (74 + depth * 16).toFixed(1) + "%, " + alpha.toFixed(3) + ")";
+          ctx.fillRect(x, y, size, size);
+
+          if (FX.full && depth > 0.62 && twinkle > 0.92) {
+            ctx.strokeStyle = "hsla(" + s.hue + ", 90%, 78%, " + (alpha * 0.38).toFixed(3) + ")";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x - 2 - depth * 2, y + size * 0.5);
+            ctx.lineTo(x + size + 2 + depth * 2, y + size * 0.5);
+            ctx.moveTo(x + size * 0.5, y - 2 - depth * 2);
+            ctx.lineTo(x + size * 0.5, y + size + 2 + depth * 2);
+            ctx.stroke();
+          }
         }
         ctx.restore();
       }
@@ -1650,9 +1795,10 @@
 
         let shakeX = 0;
         let shakeY = 0;
-        if (game.shake > 0 && FX.full) {
-          shakeX = (Math.random() - 0.5) * game.shake;
-          shakeY = (Math.random() - 0.5) * game.shake;
+        if (game.shake > 0) {
+          const jitterScale = FX.full ? 1 : 0.4;
+          shakeX = game.shakeBiasX + (Math.random() - 0.5) * game.shake * jitterScale;
+          shakeY = game.shakeBiasY + (Math.random() - 0.5) * game.shake * jitterScale;
         }
 
         ctx.save();
@@ -1677,6 +1823,11 @@
         if (game.mode === "running") {
           updateRunning(dt);
         } else {
+          if (game) {
+            game.shake = Math.max(0, game.shake - dt * 18);
+            game.shakeBiasX *= Math.exp(-11 * dt);
+            game.shakeBiasY *= Math.exp(-11 * dt);
+          }
           if (game && game.particles.length) {
             for (let i = game.particles.length - 1; i >= 0; i -= 1) {
               const part = game.particles[i];
