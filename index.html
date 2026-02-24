@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Neon Snake Grid</title>
+  <style>
+    :root {
+      --bg-0: #05060d;
+      --bg-1: #0a1020;
+      --bg-2: #101635;
+      --ink: #edf7ff;
+      --muted: #9fb7d6;
+      --cyan: #49f1ff;
+      --blue: #69a3ff;
+      --lime: #79ff8d;
+      --rose: #ff5ca8;
+      --gold: #ffd15a;
+      --panel: rgba(8, 15, 30, 0.7);
+      --panel-border: rgba(120, 190, 255, 0.22);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --scanline: rgba(255, 255, 255, 0.045);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 14% 10%, rgba(73, 241, 255, 0.12), transparent 40%),
+        radial-gradient(circle at 84% 14%, rgba(255, 92, 168, 0.09), transparent 36%),
+        radial-gradient(circle at 55% 85%, rgba(121, 255, 141, 0.08), transparent 42%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1) 40%, var(--bg-0));
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -12%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      background:
+        radial-gradient(circle at 18% 24%, rgba(73, 241, 255, 0.15), transparent 46%),
+        radial-gradient(circle at 74% 42%, rgba(105, 163, 255, 0.14), transparent 48%),
+        radial-gradient(circle at 42% 78%, rgba(255, 92, 168, 0.08), transparent 44%);
+      filter: blur(18px);
+      opacity: 0.65;
+      animation: ambientDrift 18s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      background:
+        repeating-linear-gradient(
+          180deg,
+          transparent 0,
+          transparent 2px,
+          rgba(255, 255, 255, 0.012) 3px,
+          transparent 4px
+        );
+      opacity: 0.35;
+      mix-blend-mode: screen;
+      animation: scanMove 14s linear infinite;
+    }
+
+    @keyframes ambientDrift {
+      from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+      to { transform: translate3d(1.5%, 1%, 0) scale(1.03); }
+    }
+
+    @keyframes scanMove {
+      from { transform: translateY(0); }
+      to { transform: translateY(16px); }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 180px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .logo {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 34px);
+      line-height: 1;
+      letter-spacing: 0.04em;
+      font-weight: 800;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 14px rgba(73, 241, 255, 0.32),
+        0 0 28px rgba(105, 163, 255, 0.14);
+    }
+
+    .logo .accent {
+      color: var(--cyan);
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(86px, 130px));
+      gap: 10px;
+      justify-content: end;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    .card {
+      border-radius: 14px;
+      border: 1px solid var(--panel-border);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+        var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      padding: 10px 12px;
+      min-height: 58px;
+    }
+
+    .cardLabel {
+      display: block;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    .cardValue {
+      display: block;
+      font-weight: 800;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 14px rgba(73, 241, 255, 0.18);
+      font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+    }
+
+    .cardValue.score {
+      color: var(--gold);
+      text-shadow: 0 0 18px rgba(255, 209, 90, 0.28);
+    }
+
+    .stage {
+      position: relative;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .frame {
+      position: relative;
+      width: min(94vw, 860px);
+      height: min(70vh, 860px);
+      min-height: 300px;
+      border-radius: 24px;
+      border: 1px solid rgba(120, 190, 255, 0.22);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+        rgba(6, 11, 22, 0.72);
+      box-shadow:
+        0 28px 90px rgba(0,0,0,0.48),
+        inset 0 0 0 1px rgba(255,255,255,0.02);
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+
+    .frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 16% 12%, rgba(73, 241, 255, 0.12), transparent 45%),
+        radial-gradient(circle at 86% 16%, rgba(255, 92, 168, 0.07), transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(121, 255, 141, 0.06), transparent 48%);
+      z-index: 0;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(4, 8, 16, 0.45), rgba(4, 8, 16, 0.72));
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .panel {
+      position: relative;
+      width: min(520px, 100%);
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid rgba(120, 190, 255, 0.25);
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01)),
+        rgba(7, 13, 26, 0.84);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.42);
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: -20% auto auto -10%;
+      width: 72%;
+      height: 72%;
+      background: radial-gradient(circle, rgba(73,241,255,0.1), transparent 70%);
+      pointer-events: none;
+    }
+
+    .panelTitle {
+      margin: 0 0 6px;
+      font-size: clamp(28px, 6vw, 40px);
+      line-height: 0.95;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 800;
+      text-shadow: 0 0 18px rgba(73, 241, 255, 0.2);
+    }
+
+    .panelTitle .accent {
+      color: var(--cyan);
+    }
+
+    .panelText {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .statsRow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .statBox {
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+      padding: 9px 10px;
+    }
+
+    .statBox .cardLabel {
+      margin-bottom: 4px;
+    }
+
+    .statBox .cardValue {
+      font-size: 17px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .controls div {
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      padding: 8px 10px;
+    }
+
+    kbd {
+      display: inline-block;
+      border-radius: 6px;
+      padding: 2px 5px;
+      margin-right: 2px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 11px;
+      line-height: 1;
+      min-width: 1.4em;
+      text-align: center;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 10px 14px;
+      min-width: 118px;
+      transition: transform 120ms ease, filter 120ms ease;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:focus-visible {
+      outline: 2px solid rgba(73,241,255,0.65);
+      outline-offset: 2px;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #021018;
+    }
+
+    .ghost {
+      background: rgba(255,255,255,0.05);
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .footerBar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footerHint {
+      border-radius: 12px;
+      border: 1px solid rgba(120, 190, 255, 0.18);
+      background: rgba(8, 14, 28, 0.5);
+      padding: 8px 10px;
+    }
+
+    .statusPill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 7px 11px;
+      border: 1px solid rgba(120, 190, 255, 0.2);
+      background: rgba(9, 17, 34, 0.55);
+      color: var(--ink);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 12px rgba(121,255,141,0.55);
+      animation: pulseDot 1.1s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(0.85); opacity: 0.85; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    @media (max-width: 900px) {
+      .hud {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+        width: 100%;
+      }
+
+      .topbar {
+        align-items: stretch;
+      }
+
+      .frame {
+        width: 100%;
+        height: min(64vh, 72vw);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app {
+        padding: 10px;
+        gap: 10px;
+      }
+
+      .frame {
+        height: min(58vh, 86vw);
+        border-radius: 18px;
+      }
+
+      .statsRow,
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .footerBar {
+        font-size: 11px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::before,
+      body::after,
+      .dot {
+        animation: none;
+      }
+
+      .overlay,
+      button {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar" aria-live="polite">
+      <div class="brand">
+        <span class="eyebrow">Retro Neon Arcade</span>
+        <h1 class="logo">Snake <span class="accent">Grid</span></h1>
+      </div>
+      <div class="hud">
+        <div class="card">
+          <span class="cardLabel">Score</span>
+          <span class="cardValue score" id="scoreValue">0</span>
+        </div>
+        <div class="card">
+          <span class="cardLabel">High</span>
+          <span class="cardValue" id="highScoreValue">0</span>
+        </div>
+        <div class="card">
+          <span class="cardLabel">Length</span>
+          <span class="cardValue" id="lengthValue">4</span>
+        </div>
+        <div class="card">
+          <span class="cardLabel">Speed</span>
+          <span class="cardValue" id="speedValue">1.0x</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="frame">
+        <canvas id="gameCanvas" aria-label="Snake game canvas"></canvas>
+
+        <section class="overlay show" id="startOverlay" aria-labelledby="startTitle">
+          <div class="panel">
+            <div class="eyebrow">Single File Arcade</div>
+            <h2 class="panelTitle" id="startTitle">Neon <span class="accent">Snake</span></h2>
+            <p class="panelText">
+              Glide through the glowing grid, collect cores, and keep the run alive as the snake accelerates.
+              Tight turns, smooth movement, and a retro CRT vibe make every round feel fast.
+            </p>
+            <div class="controls" aria-label="Controls">
+              <div><strong>Move:</strong> <kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&larr;</kbd><kbd>&rarr;</kbd> or WASD</div>
+              <div><strong>Restart:</strong> <kbd>Enter</kbd> / <kbd>Space</kbd></div>
+              <div><strong>Pause:</strong> <kbd>P</kbd></div>
+              <div><strong>Mobile:</strong> Swipe to steer</div>
+            </div>
+            <div class="actions">
+              <button class="primary" id="startBtn" type="button">Start Run</button>
+              <button class="ghost" id="fxBtn" type="button">Toggle FX</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="overlay" id="gameOverOverlay" aria-labelledby="gameOverTitle">
+          <div class="panel">
+            <div class="eyebrow">Game Over</div>
+            <h2 class="panelTitle" id="gameOverTitle">Signal <span class="accent">Lost</span></h2>
+            <p class="panelText">You clipped the wall or your own trail. Reboot the run and chase a higher score.</p>
+            <div class="statsRow">
+              <div class="statBox">
+                <span class="cardLabel">Final Score</span>
+                <span class="cardValue score" id="finalScoreValue">0</span>
+              </div>
+              <div class="statBox">
+                <span class="cardLabel">Length</span>
+                <span class="cardValue" id="finalLengthValue">0</span>
+              </div>
+              <div class="statBox">
+                <span class="cardLabel">Best</span>
+                <span class="cardValue" id="bestScoreOverlayValue">0</span>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="primary" id="restartBtn" type="button">Restart</button>
+              <button class="ghost" id="menuBtn" type="button">Main Menu</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footerBar">
+      <div class="footerHint">
+        Eat neon cores for points. Each pickup speeds up the snake. Stay calm and plan your turns.
+      </div>
+      <div class="statusPill" id="statusPill">
+        <span class="dot"></span>
+        <span id="statusText">Menu</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const ui = {
+        score: document.getElementById("scoreValue"),
+        highScore: document.getElementById("highScoreValue"),
+        length: document.getElementById("lengthValue"),
+        speed: document.getElementById("speedValue"),
+        startOverlay: document.getElementById("startOverlay"),
+        gameOverOverlay: document.getElementById("gameOverOverlay"),
+        startBtn: document.getElementById("startBtn"),
+        restartBtn: document.getElementById("restartBtn"),
+        menuBtn: document.getElementById("menuBtn"),
+        fxBtn: document.getElementById("fxBtn"),
+        finalScore: document.getElementById("finalScoreValue"),
+        finalLength: document.getElementById("finalLengthValue"),
+        bestScoreOverlay: document.getElementById("bestScoreOverlayValue"),
+        statusText: document.getElementById("statusText")
+      };
+
+      const STORAGE_KEY = "neon-snake-grid-high-score";
+      const GRID_COLS = 26;
+      const GRID_ROWS = 26;
+      const BASE_STEP_MS = 140;
+      const MIN_STEP_MS = 56;
+      const SPEEDUP_PER_FOOD_MS = 3;
+      const PARTICLE_LIMIT = 220;
+
+      const DIR = {
+        up: { x: 0, y: -1, name: "up" },
+        down: { x: 0, y: 1, name: "down" },
+        left: { x: -1, y: 0, name: "left" },
+        right: { x: 1, y: 0, name: "right" }
+      };
+
+      const input = {
+        queue: [],
+        touchStartX: 0,
+        touchStartY: 0
+      };
+
+      const fx = { full: true };
+      const world = { w: 0, h: 0, dpr: 1 };
+      const stars = Array.from({ length: 72 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        z: 0.2 + Math.random() * 0.8
+      }));
+
+      let highScore = 0;
+      try {
+        highScore = Number(localStorage.getItem(STORAGE_KEY)) || 0;
+      } catch (_) {
+        highScore = 0;
+      }
+
+      const state = {
+        phase: "menu", // menu | running | paused | gameover
+        score: 0,
+        snake: [],
+        snakeFrom: [],
+        direction: DIR.right,
+        pendingDirection: DIR.right,
+        food: null,
+        foodPulse: 0,
+        foodSpawnBurst: 0,
+        particles: [],
+        gridFlash: 0,
+        shake: 0,
+        elapsedRunMs: 0,
+        stepMs: BASE_STEP_MS,
+        accumulator: 0,
+        tick: 0,
+        lastFrameTs: performance.now(),
+        statusBlink: 0
+      };
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function sameCell(a, b) {
+        return a && b && a.x === b.x && a.y === b.y;
+      }
+
+      function keyForCell(x, y) {
+        return x + "," + y;
+      }
+
+      function isReverse(next, current) {
+        return next.x === -current.x && next.y === -current.y;
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        world.w = Math.max(1, Math.floor(rect.width));
+        world.h = Math.max(1, Math.floor(rect.height));
+        world.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.floor(world.w * world.dpr));
+        canvas.height = Math.max(1, Math.floor(world.h * world.dpr));
+        ctx.setTransform(world.dpr, 0, 0, world.dpr, 0, 0);
+      }
+
+      function boardRect() {
+        const pad = Math.max(18, Math.floor(Math.min(world.w, world.h) * 0.035));
+        const size = Math.min(world.w - pad * 2, world.h - pad * 2);
+        const cell = Math.floor(size / GRID_COLS);
+        const boardSize = cell * GRID_COLS;
+        const x = Math.floor((world.w - boardSize) / 2);
+        const y = Math.floor((world.h - boardSize) / 2);
+        return { x, y, size: boardSize, cell };
+      }
+
+      function updateHud() {
+        ui.score.textContent = String(state.score);
+        ui.highScore.textContent = String(highScore);
+        ui.length.textContent = String(state.snake.length || 0);
+        ui.speed.textContent = (BASE_STEP_MS / state.stepMs).toFixed(1) + "x";
+
+        if (state.phase === "running") ui.statusText.textContent = "Running";
+        else if (state.phase === "paused") ui.statusText.textContent = "Paused";
+        else if (state.phase === "gameover") ui.statusText.textContent = "Game Over";
+        else ui.statusText.textContent = "Menu";
+      }
+
+      function setPhase(phase) {
+        state.phase = phase;
+        ui.startOverlay.classList.toggle("show", phase === "menu");
+        ui.gameOverOverlay.classList.toggle("show", phase === "gameover");
+        updateHud();
+      }
+
+      function saveHighScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(highScore));
+        } catch (_) {
+          /* ignore storage errors */
+        }
+      }
+
+      function resetSnake() {
+        const cx = Math.floor(GRID_COLS / 2);
+        const cy = Math.floor(GRID_ROWS / 2);
+        state.snake = [
+          { x: cx, y: cy },
+          { x: cx - 1, y: cy },
+          { x: cx - 2, y: cy },
+          { x: cx - 3, y: cy }
+        ];
+        state.snakeFrom = state.snake.map((s) => ({ x: s.x, y: s.y }));
+        state.direction = DIR.right;
+        state.pendingDirection = DIR.right;
+        input.queue.length = 0;
+      }
+
+      function randomFreeCell() {
+        const blocked = new Set(state.snake.map((s) => keyForCell(s.x, s.y)));
+        const free = [];
+        for (let y = 0; y < GRID_ROWS; y += 1) {
+          for (let x = 0; x < GRID_COLS; x += 1) {
+            if (!blocked.has(keyForCell(x, y))) free.push({ x, y });
+          }
+        }
+        if (!free.length) return null;
+        return free[Math.floor(Math.random() * free.length)];
+      }
+
+      function spawnFood(withBurst) {
+        const cell = randomFreeCell();
+        if (!cell) return;
+        state.food = cell;
+        state.foodPulse = 0;
+        if (withBurst) {
+          state.foodSpawnBurst = 1;
+          spawnBurstAtCell(cell, 50, { count: fx.full ? 14 : 6, hue: 46, spread: 180, life: 0.45 });
+        }
+      }
+
+      function startGame() {
+        state.score = 0;
+        state.elapsedRunMs = 0;
+        state.stepMs = BASE_STEP_MS;
+        state.accumulator = 0;
+        state.tick = 0;
+        state.gridFlash = 0.18;
+        state.shake = 0;
+        state.particles.length = 0;
+        resetSnake();
+        spawnFood(false);
+        setPhase("running");
+      }
+
+      function goToMenu() {
+        state.score = 0;
+        state.elapsedRunMs = 0;
+        state.stepMs = BASE_STEP_MS;
+        state.accumulator = 0;
+        state.gridFlash = 0;
+        state.shake = 0;
+        state.particles.length = 0;
+        resetSnake();
+        spawnFood(false);
+        setPhase("menu");
+      }
+
+      function gameOver() {
+        state.shake = Math.max(state.shake, 12);
+        state.gridFlash = Math.max(state.gridFlash, 0.55);
+        if (state.score > highScore) {
+          highScore = state.score;
+          saveHighScore();
+        }
+        ui.finalScore.textContent = String(state.score);
+        ui.finalLength.textContent = String(state.snake.length);
+        ui.bestScoreOverlay.textContent = String(highScore);
+        setPhase("gameover");
+        spawnBurstAtCell(state.snake[0], 0, { count: fx.full ? 26 : 12, hue: 338, spread: 280, life: 0.6, speedMin: 60, speedMax: 320 });
+      }
+
+      function queueDirection(dir) {
+        if (!dir) return;
+        const lastQueued = input.queue.length ? input.queue[input.queue.length - 1] : state.pendingDirection;
+        const compareAgainst = lastQueued || state.pendingDirection || state.direction;
+        if (dir.name === compareAgainst.name) return;
+        if (isReverse(dir, compareAgainst)) return;
+        if (input.queue.length >= 3) return;
+        input.queue.push(dir);
+      }
+
+      function consumeDirectionQueue() {
+        while (input.queue.length) {
+          const next = input.queue.shift();
+          if (!isReverse(next, state.direction)) {
+            state.pendingDirection = next;
+            return;
+          }
+        }
+      }
+
+      function spawnParticle(px, py, options = {}) {
+        if (state.particles.length > PARTICLE_LIMIT) state.particles.splice(0, state.particles.length - PARTICLE_LIMIT);
+        const life = options.life ?? rand(0.18, 0.55);
+        state.particles.push({
+          x: px,
+          y: py,
+          vx: options.vx ?? rand(-120, 120),
+          vy: options.vy ?? rand(-120, 120),
+          life,
+          maxLife: life,
+          size: options.size ?? rand(1.2, 3.8),
+          hue: options.hue ?? 190,
+          sat: options.sat ?? 95,
+          light: options.light ?? 68,
+          drag: options.drag ?? 2.8,
+          glow: options.glow ?? 0.7
+        });
+      }
+
+      function spawnBurstAtCell(cell, points, options = {}) {
+        if (!cell) return;
+        const b = boardRect();
+        const px = b.x + (cell.x + 0.5) * b.cell;
+        const py = b.y + (cell.y + 0.5) * b.cell;
+        const count = options.count ?? 12;
+        const hue = options.hue ?? 190;
+        const spread = options.spread ?? 160;
+        const life = options.life ?? 0.35;
+        const speedMin = options.speedMin ?? 40;
+        const speedMax = options.speedMax ?? 180;
+        for (let i = 0; i < count; i += 1) {
+          const a = rand(0, Math.PI * 2);
+          const s = rand(speedMin, speedMax);
+          spawnParticle(px, py, {
+            vx: Math.cos(a) * s,
+            vy: Math.sin(a) * s,
+            life: life * rand(0.8, 1.2),
+            size: rand(1.4, 4.2),
+            hue: hue + rand(-12, 12),
+            light: 65 + rand(-5, 8),
+            glow: 0.8
+          });
+        }
+        if (points > 0) {
+          for (let i = 0; i < Math.min(8, Math.ceil(points / 12)); i += 1) {
+            spawnParticle(px, py, {
+              vx: rand(-30, 30),
+              vy: rand(-120, -35),
+              life: rand(0.45, 0.8),
+              size: rand(1.6, 2.8),
+              hue: 48,
+              light: 72
+            });
+          }
+        }
+      }
+
+      function stepGame() {
+        if (state.phase !== "running") return;
+
+        consumeDirectionQueue();
+        state.direction = state.pendingDirection;
+
+        const oldSnake = state.snake.map((s) => ({ x: s.x, y: s.y }));
+        const head = state.snake[0];
+        const nextHead = { x: head.x + state.direction.x, y: head.y + state.direction.y };
+
+        if (nextHead.x < 0 || nextHead.y < 0 || nextHead.x >= GRID_COLS || nextHead.y >= GRID_ROWS) {
+          state.snakeFrom = oldSnake;
+          gameOver();
+          return;
+        }
+
+        const willEat = sameCell(nextHead, state.food);
+        const bodyToCheck = willEat ? state.snake : state.snake.slice(0, -1);
+        for (let i = 0; i < bodyToCheck.length; i += 1) {
+          if (bodyToCheck[i].x === nextHead.x && bodyToCheck[i].y === nextHead.y) {
+            state.snakeFrom = oldSnake;
+            gameOver();
+            return;
+          }
+        }
+
+        const newSnake = [nextHead].concat(state.snake);
+        if (!willEat) newSnake.pop();
+
+        state.snakeFrom = newSnake.map((seg, idx) => {
+          if (idx === 0) return { x: oldSnake[0].x, y: oldSnake[0].y };
+          if (oldSnake[idx - 1]) return { x: oldSnake[idx - 1].x, y: oldSnake[idx - 1].y };
+          return { x: oldSnake[oldSnake.length - 1].x, y: oldSnake[oldSnake.length - 1].y };
+        });
+        state.snake = newSnake;
+        state.tick += 1;
+
+        if (willEat) {
+          const points = 10 + Math.max(0, Math.round((BASE_STEP_MS - state.stepMs) * 0.2));
+          state.score += points;
+          if (state.score > highScore) {
+            highScore = state.score;
+            saveHighScore();
+          }
+          state.stepMs = Math.max(MIN_STEP_MS, state.stepMs - SPEEDUP_PER_FOOD_MS);
+          state.gridFlash = Math.min(1, state.gridFlash + 0.18);
+          state.shake = Math.max(state.shake, 6);
+          spawnBurstAtCell(state.food, points, { count: fx.full ? 18 : 8, hue: 52, spread: 240, life: 0.42 });
+          spawnFood(true);
+        } else {
+          const b = boardRect();
+          const tail = state.snake[state.snake.length - 1];
+          if (tail && fx.full && state.tick % 2 === 0) {
+            spawnParticle(
+              b.x + (tail.x + 0.5) * b.cell,
+              b.y + (tail.y + 0.5) * b.cell,
+              {
+                vx: rand(-20, 20),
+                vy: rand(-20, 20),
+                life: rand(0.08, 0.18),
+                size: rand(0.8, 1.8),
+                hue: 150,
+                light: 66,
+                glow: 0.35
+              }
+            );
+          }
+        }
+
+        updateHud();
+      }
+
+      function updateParticles(dt) {
+        for (let i = state.particles.length - 1; i >= 0; i -= 1) {
+          const p = state.particles[i];
+          p.life -= dt;
+          if (p.life <= 0) {
+            state.particles.splice(i, 1);
+            continue;
+          }
+          const d = Math.exp(-(p.drag || 2.8) * dt);
+          p.vx *= d;
+          p.vy *= d;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+        }
+      }
+
+      function update(dt, nowMs) {
+        state.foodPulse += dt * 5.5;
+        state.foodSpawnBurst = Math.max(0, state.foodSpawnBurst - dt * 2.2);
+        state.gridFlash = Math.max(0, state.gridFlash - dt * 0.65);
+        state.shake = Math.max(0, state.shake - dt * 18);
+        state.statusBlink += dt;
+
+        updateParticles(dt);
+
+        if (state.phase !== "running") return;
+
+        state.elapsedRunMs += dt * 1000;
+        state.accumulator += dt * 1000;
+        while (state.accumulator >= state.stepMs) {
+          state.accumulator -= state.stepMs;
+          stepGame();
+          if (state.phase !== "running") break;
+        }
+      }
+
+      function drawBackground(now) {
+        const t = now * 0.001;
+        const grad = ctx.createRadialGradient(
+          world.w * 0.18 + Math.sin(t * 0.25) * 20,
+          world.h * 0.14 + Math.cos(t * 0.2) * 16,
+          8,
+          world.w * 0.5,
+          world.h * 0.55,
+          Math.max(world.w, world.h) * 0.9
+        );
+        grad.addColorStop(0, "rgba(35, 85, 140, 0.25)");
+        grad.addColorStop(0.5, "rgba(14, 27, 58, 0.16)");
+        grad.addColorStop(1, "rgba(3, 6, 12, 0.9)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, world.w, world.h);
+
+        ctx.save();
+        for (let i = 0; i < stars.length; i += 1) {
+          const s = stars[i];
+          const x = (s.x * world.w + (t * (8 + s.z * 18))) % (world.w + 40) - 20;
+          const y = s.y * world.h + Math.sin(t * (0.5 + s.z) + i) * (4 + s.z * 6);
+          const alpha = 0.14 + s.z * 0.35;
+          ctx.fillStyle = "rgba(185, 220, 255, " + alpha.toFixed(3) + ")";
+          const size = 0.6 + s.z * 1.2;
+          ctx.fillRect(x, y, size, size);
+        }
+        ctx.restore();
+      }
+
+      function drawBoardShell(b, now) {
+        ctx.save();
+        ctx.translate(b.x, b.y);
+
+        const shell = ctx.createLinearGradient(0, 0, 0, b.size);
+        shell.addColorStop(0, "rgba(8, 14, 28, 0.88)");
+        shell.addColorStop(1, "rgba(4, 8, 18, 0.92)");
+        ctx.fillStyle = shell;
+        roundRect(ctx, 0, 0, b.size, b.size, 16);
+        ctx.fill();
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(120, 190, 255, 0.16)";
+        roundRect(ctx, 0.5, 0.5, b.size - 1, b.size - 1, 16);
+        ctx.stroke();
+
+        const flash = state.gridFlash;
+        const t = now * 0.001;
+        ctx.save();
+        ctx.beginPath();
+        roundRect(ctx, 2, 2, b.size - 4, b.size - 4, 14);
+        ctx.clip();
+
+        const cell = b.cell;
+        ctx.globalAlpha = fx.full ? 0.13 + flash * 0.08 : 0.09 + flash * 0.06;
+        ctx.strokeStyle = "rgba(73, 241, 255, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x <= GRID_COLS; x += 1) {
+          const wave = Math.sin(t * 2 + x * 0.8) * 0.45 * flash;
+          const px = x * cell + wave;
+          ctx.moveTo(px, 0);
+          ctx.lineTo(px, b.size);
+        }
+        for (let y = 0; y <= GRID_ROWS; y += 1) {
+          const wave = Math.cos(t * 1.8 + y * 0.7) * 0.45 * flash;
+          const py = y * cell + wave;
+          ctx.moveTo(0, py);
+          ctx.lineTo(b.size, py);
+        }
+        ctx.stroke();
+
+        if (fx.full) {
+          ctx.globalCompositeOperation = "lighter";
+          ctx.fillStyle = "rgba(73,241,255,0.06)";
+          const bandY = ((t * 80) % (b.size + 100)) - 100;
+          ctx.fillRect(0, bandY, b.size, 80);
+        }
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function cellCenter(b, cell) {
+        return {
+          x: b.x + (cell.x + 0.5) * b.cell,
+          y: b.y + (cell.y + 0.5) * b.cell
+        };
+      }
+
+      function interpSnake(alpha) {
+        if (!state.snake.length) return [];
+        const t = state.phase === "running" ? clamp(alpha, 0, 1) : 1;
+        const result = [];
+        for (let i = 0; i < state.snake.length; i += 1) {
+          const to = state.snake[i];
+          const from = state.snakeFrom[i] || to;
+          result.push({
+            x: lerp(from.x, to.x, t),
+            y: lerp(from.y, to.y, t)
+          });
+        }
+        return result;
+      }
+
+      function drawFood(b, now) {
+        if (!state.food) return;
+        const c = cellCenter(b, state.food);
+        const pulse = 1 + Math.sin(state.foodPulse) * 0.12;
+        const burst = state.foodSpawnBurst;
+        const r = b.cell * (0.24 + pulse * 0.06);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        const glowR = r * (2.4 + burst * 0.8);
+        const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, glowR);
+        g.addColorStop(0, "rgba(255, 209, 90, " + (0.22 + burst * 0.18).toFixed(3) + ")");
+        g.addColorStop(1, "rgba(255, 209, 90, 0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, glowR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255, 209, 90, 0.92)";
+        ctx.shadowColor = "rgba(255, 209, 90, 0.65)";
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255, 240, 190, 0.9)";
+        ctx.beginPath();
+        ctx.arc(c.x - r * 0.25, c.y - r * 0.25, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (fx.full) {
+          ctx.strokeStyle = "rgba(255, 209, 90, 0.32)";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, r * (2 + Math.sin(now * 0.01) * 0.12), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawSnake(b, alpha, now) {
+        const interp = interpSnake(alpha);
+        if (!interp.length) return;
+        const cell = b.cell;
+        const bodyR = Math.max(4, cell * 0.33);
+
+        ctx.save();
+
+        if (fx.full) {
+          ctx.globalCompositeOperation = "lighter";
+          for (let i = interp.length - 1; i >= 0; i -= 1) {
+            const s = interp[i];
+            const c = {
+              x: b.x + (s.x + 0.5) * cell,
+              y: b.y + (s.y + 0.5) * cell
+            };
+            const glow = bodyR * (2.4 - i * 0.03);
+            const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, glow);
+            const a = i === 0 ? 0.18 : 0.1;
+            g.addColorStop(0, "rgba(73, 241, 255, " + a + ")");
+            g.addColorStop(1, "rgba(73, 241, 255, 0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, glow, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalCompositeOperation = "source-over";
+        }
+
+        for (let i = interp.length - 1; i >= 0; i -= 1) {
+          const seg = interp[i];
+          const c = {
+            x: b.x + (seg.x + 0.5) * cell,
+            y: b.y + (seg.y + 0.5) * cell
+          };
+
+          if (i < interp.length - 1) {
+            const next = interp[i + 1];
+            const nc = {
+              x: b.x + (next.x + 0.5) * cell,
+              y: b.y + (next.y + 0.5) * cell
+            };
+            const dx = nc.x - c.x;
+            const dy = nc.y - c.y;
+            const angle = Math.atan2(dy, dx);
+            const dist = Math.hypot(dx, dy);
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.rotate(angle);
+            ctx.fillStyle = "rgba(55, 235, 255, 0.68)";
+            roundRect(ctx, 0, -bodyR * 0.62, dist, bodyR * 1.24, bodyR * 0.5);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        for (let i = interp.length - 1; i >= 0; i -= 1) {
+          const seg = interp[i];
+          const c = {
+            x: b.x + (seg.x + 0.5) * cell,
+            y: b.y + (seg.y + 0.5) * cell
+          };
+          const isHead = i === 0;
+          const pulse = 1 + (isHead ? Math.sin(now * 0.018) * 0.03 : 0);
+          const radius = bodyR * (isHead ? 1.03 : 0.95) * pulse;
+          const grad = ctx.createRadialGradient(c.x - radius * 0.3, c.y - radius * 0.35, radius * 0.2, c.x, c.y, radius * 1.25);
+          grad.addColorStop(0, isHead ? "rgba(215,255,255,0.98)" : "rgba(172,255,245,0.92)");
+          grad.addColorStop(0.35, isHead ? "rgba(100,255,230,0.96)" : "rgba(73,241,255,0.93)");
+          grad.addColorStop(1, isHead ? "rgba(34,210,255,0.85)" : "rgba(38,168,255,0.72)");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = isHead ? "rgba(230,255,255,0.22)" : "rgba(200,240,255,0.12)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, radius - 0.6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        const head = interp[0];
+        const headCenter = { x: b.x + (head.x + 0.5) * cell, y: b.y + (head.y + 0.5) * cell };
+        const lookX = state.direction.x;
+        const lookY = state.direction.y;
+        const angle = Math.atan2(lookY, lookX);
+        ctx.save();
+        ctx.translate(headCenter.x, headCenter.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = "rgba(8, 19, 29, 0.9)";
+        ctx.beginPath();
+        ctx.arc(cell * 0.09, -cell * 0.12, Math.max(1.6, cell * 0.08), 0, Math.PI * 2);
+        ctx.arc(cell * 0.09, cell * 0.12, Math.max(1.6, cell * 0.08), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.arc(cell * 0.13, -cell * 0.13, Math.max(0.8, cell * 0.03), 0, Math.PI * 2);
+        ctx.arc(cell * 0.13, cell * 0.13, Math.max(0.8, cell * 0.03), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        if (!state.particles.length) return;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = 0; i < state.particles.length; i += 1) {
+          const p = state.particles[i];
+          const a = clamp(p.life / p.maxLife, 0, 1);
+          if (a <= 0) continue;
+          const r = p.size * (0.5 + a * 0.7);
+          ctx.fillStyle = "hsla(" + p.hue.toFixed(0) + ", " + p.sat + "%, " + p.light + "%, " + (a * 0.85).toFixed(3) + ")";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawHudTextOnCanvas(b) {
+        ctx.save();
+        const pulse = state.phase === "paused" ? 0.55 + Math.sin(state.statusBlink * 6) * 0.1 : 0;
+        if (state.phase === "paused") {
+          ctx.fillStyle = "rgba(6, 10, 18, 0.55)";
+          roundRect(ctx, b.x + 12, b.y + 12, 112, 34, 10);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(120, 190, 255, 0.18)";
+          ctx.stroke();
+          ctx.fillStyle = "rgba(73, 241, 255, " + pulse.toFixed(3) + ")";
+          ctx.font = "700 14px Trebuchet MS, sans-serif";
+          ctx.textBaseline = "middle";
+          ctx.fillText("PAUSED", b.x + 22, b.y + 29);
+        }
+        ctx.restore();
+      }
+
+      function drawVignette() {
+        const grad = ctx.createRadialGradient(
+          world.w * 0.5,
+          world.h * 0.5,
+          Math.min(world.w, world.h) * 0.2,
+          world.w * 0.5,
+          world.h * 0.5,
+          Math.max(world.w, world.h) * 0.75
+        );
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(1, "rgba(0,0,0,0.46)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, world.w, world.h);
+      }
+
+      function render(now) {
+        const dtMs = now - state.lastFrameTs;
+        state.lastFrameTs = now;
+        const dt = Math.min(0.05, Math.max(0, dtMs / 1000));
+
+        update(dt, now);
+
+        ctx.clearRect(0, 0, world.w, world.h);
+        drawBackground(now);
+
+        const shake = fx.full ? state.shake : 0;
+        const sx = shake ? (Math.random() - 0.5) * shake : 0;
+        const sy = shake ? (Math.random() - 0.5) * shake : 0;
+
+        ctx.save();
+        ctx.translate(sx, sy);
+
+        const b = boardRect();
+        drawBoardShell(b, now);
+        drawFood(b, now);
+
+        const alpha = state.stepMs > 0 ? state.accumulator / state.stepMs : 1;
+        drawSnake(b, alpha, now);
+        drawParticles();
+        drawHudTextOnCanvas(b);
+
+        ctx.restore();
+        drawVignette();
+
+        requestAnimationFrame(render);
+      }
+
+      function roundRect(context, x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        context.beginPath();
+        context.moveTo(x + rr, y);
+        context.arcTo(x + w, y, x + w, y + h, rr);
+        context.arcTo(x + w, y + h, x, y + h, rr);
+        context.arcTo(x, y + h, x, y, rr);
+        context.arcTo(x, y, x + w, y, rr);
+        context.closePath();
+      }
+
+      function mapKeyToDir(code) {
+        if (code === "ArrowUp" || code === "KeyW") return DIR.up;
+        if (code === "ArrowDown" || code === "KeyS") return DIR.down;
+        if (code === "ArrowLeft" || code === "KeyA") return DIR.left;
+        if (code === "ArrowRight" || code === "KeyD") return DIR.right;
+        return null;
+      }
+
+      function togglePause() {
+        if (state.phase === "running") setPhase("paused");
+        else if (state.phase === "paused") setPhase("running");
+      }
+
+      function handleStartOrRestart() {
+        if (state.phase === "menu" || state.phase === "gameover") startGame();
+      }
+
+      window.addEventListener("keydown", (event) => {
+        const dir = mapKeyToDir(event.code);
+        if (dir) {
+          event.preventDefault();
+          if (state.phase === "menu") {
+            startGame();
+            queueDirection(dir);
+            return;
+          }
+          if (state.phase === "gameover") {
+            startGame();
+            queueDirection(dir);
+            return;
+          }
+          if (state.phase === "running" || state.phase === "paused") {
+            queueDirection(dir);
+            if (state.phase === "paused") setPhase("running");
+          }
+          return;
+        }
+
+        if (event.code === "Space" || event.code === "Enter") {
+          event.preventDefault();
+          if (state.phase === "paused") {
+            setPhase("running");
+            return;
+          }
+          handleStartOrRestart();
+          return;
+        }
+
+        if (event.code === "KeyP") {
+          event.preventDefault();
+          togglePause();
+          return;
+        }
+      }, { passive: false });
+
+      canvas.addEventListener("touchstart", (event) => {
+        if (!event.touches || !event.touches[0]) return;
+        const t = event.touches[0];
+        input.touchStartX = t.clientX;
+        input.touchStartY = t.clientY;
+      }, { passive: true });
+
+      canvas.addEventListener("touchmove", (event) => {
+        if (!event.touches || !event.touches[0]) return;
+        const t = event.touches[0];
+        const dx = t.clientX - input.touchStartX;
+        const dy = t.clientY - input.touchStartY;
+        const ax = Math.abs(dx);
+        const ay = Math.abs(dy);
+        if (Math.max(ax, ay) < 22) return;
+
+        if (state.phase === "menu" || state.phase === "gameover") startGame();
+
+        if (ax > ay) queueDirection(dx > 0 ? DIR.right : DIR.left);
+        else queueDirection(dy > 0 ? DIR.down : DIR.up);
+
+        input.touchStartX = t.clientX;
+        input.touchStartY = t.clientY;
+      }, { passive: true });
+
+      ui.startBtn.addEventListener("click", startGame);
+      ui.restartBtn.addEventListener("click", startGame);
+      ui.menuBtn.addEventListener("click", goToMenu);
+      ui.fxBtn.addEventListener("click", () => {
+        fx.full = !fx.full;
+        ui.fxBtn.textContent = fx.full ? "Toggle FX" : "Enable FX";
+      });
+
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("blur", () => {
+        input.queue.length = 0;
+        if (state.phase === "running") setPhase("paused");
+      });
+
+      resizeCanvas();
+      resetSnake();
+      spawnFood(false);
+      updateHud();
+      requestAnimationFrame((ts) => {
+        state.lastFrameTs = ts;
+        requestAnimationFrame(render);
+      });
+    })();
+  </script>
+</body>
+</html>
