@@ -1252,6 +1252,7 @@
       let highScores = loadHighScores();
       let bestScore = highScores.length ? highScores[0].score : 0;
       const audioVolumeKey = "neon-core-rush-audio-volume";
+      const audioLastNonZeroVolumeKey = "neon-core-rush-audio-last-nonzero-volume";
 
       function createAudioSystem() {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1267,6 +1268,15 @@
           volumeIndex = 2;
         }
         let lastNonZeroVolumeIndex = volumeIndex > 0 ? volumeIndex : 2;
+        try {
+          const storedLastNonZero = Number(localStorage.getItem(audioLastNonZeroVolumeKey));
+          if (Number.isFinite(storedLastNonZero) && storedLastNonZero > 0 && storedLastNonZero < volumeLevels.length) {
+            lastNonZeroVolumeIndex = storedLastNonZero;
+          }
+          if (volumeIndex > 0) lastNonZeroVolumeIndex = volumeIndex;
+        } catch (_) {
+          if (volumeIndex > 0) lastNonZeroVolumeIndex = volumeIndex;
+        }
 
         const state = {
           supported: Boolean(AudioCtx),
@@ -1312,6 +1322,13 @@
             localStorage.setItem(audioVolumeKey, String(volumeIndex));
           } catch (_) {
             /* ignore storage failures */
+          }
+          if (lastNonZeroVolumeIndex > 0) {
+            try {
+              localStorage.setItem(audioLastNonZeroVolumeKey, String(lastNonZeroVolumeIndex));
+            } catch (_) {
+              /* ignore storage failures */
+            }
           }
         }
 
@@ -1720,9 +1737,9 @@
           });
         }
 
-        function playHighScore() {
+        function playHighScore(delay = 0) {
           if (!ensure() || !isAudible()) return;
-          const t = state.ctx.currentTime + 0.18;
+          const t = state.ctx.currentTime + Math.max(0, delay);
           const notes = [784, 988, 1174, 1568];
           for (let i = 0; i < notes.length; i += 1) {
             synthTone(state.sfxBus, {
@@ -2334,7 +2351,7 @@
         const finalScoreValue = Math.max(0, Math.floor(game.score));
         const isNewBestScore = finalScoreValue > 0 && finalScoreValue > bestScore;
         audio.playGameOver();
-        if (isNewBestScore) audio.playHighScore();
+        if (isNewBestScore) audio.playHighScore(0.74);
         const scoreboardMessage = prepareGameOverScoreEntry(finalScoreValue);
         const displayedBestScore = pendingHighScoreScore == null
           ? bestScore
