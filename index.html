@@ -1027,9 +1027,9 @@
       class="audioBtn"
       id="audioToggleBtn"
       type="button"
-      aria-label="Toggle audio volume"
+      aria-label="Mute audio"
       aria-pressed="false"
-    >Audio: High</button>
+    >Audio: On</button>
   </div>
 
   <section class="overlay show" id="menuOverlay" aria-labelledby="menuTitle">
@@ -1256,7 +1256,6 @@
       function createAudioSystem() {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         const volumeLevels = [0, 0.22, 0.48];
-        const volumeLabels = ["Mute", "Low", "High"];
         let volumeIndex = 2;
 
         try {
@@ -1267,6 +1266,7 @@
         } catch (_) {
           volumeIndex = 2;
         }
+        let lastNonZeroVolumeIndex = volumeIndex > 0 ? volumeIndex : 2;
 
         const state = {
           supported: Boolean(AudioCtx),
@@ -1277,7 +1277,9 @@
           nextStepTime: 0,
           step: 0,
           tempo: 108,
-          lookAhead: 0.3
+          lookAhead: 0.3,
+          musicActive: false,
+          lastScoreFxTime: -Infinity
         };
 
         const bassPattern = [40, null, 40, null, 43, null, 47, null, 38, null, 38, null, 43, null, 45, null];
@@ -1321,10 +1323,11 @@
             ui.audioToggleBtn.setAttribute("aria-pressed", "true");
             return;
           }
-          ui.audioToggleBtn.textContent = "Audio: " + volumeLabels[volumeIndex];
+          const muted = volumeIndex === 0;
+          ui.audioToggleBtn.textContent = muted ? "Audio: Muted" : "Audio: On";
           ui.audioToggleBtn.disabled = false;
-          ui.audioToggleBtn.setAttribute("aria-pressed", String(volumeIndex === 0));
-          ui.audioToggleBtn.setAttribute("aria-label", "Audio volume " + volumeLabels[volumeIndex] + ". Click to cycle.");
+          ui.audioToggleBtn.setAttribute("aria-pressed", String(muted));
+          ui.audioToggleBtn.setAttribute("aria-label", muted ? "Unmute audio" : "Mute audio");
         }
 
         function createGraph() {
@@ -1344,7 +1347,7 @@
           limiter.release.value = 0.18;
 
           master.gain.value = 0;
-          musicBus.gain.value = 0.42;
+          musicBus.gain.value = 0.0001;
           sfxBus.gain.value = 0.9;
 
           musicBus.connect(master);
@@ -1366,6 +1369,17 @@
           state.master.gain.setTargetAtTime(currentLevel(), now, 0.025);
         }
 
+        function applyMusicActivity(resetClock = false) {
+          if (!state.ctx || !state.musicBus) return;
+          const now = state.ctx.currentTime;
+          if (resetClock) {
+            state.nextStepTime = now + 0.06;
+          }
+          const targetGain = state.musicActive && isAudible() ? 0.42 : 0.0001;
+          state.musicBus.gain.cancelScheduledValues(now);
+          state.musicBus.gain.setTargetAtTime(targetGain, now, 0.035);
+        }
+
         function ensure() {
           if (!state.supported) return false;
           createGraph();
@@ -1375,6 +1389,17 @@
           }
           applyVolume();
           return true;
+        }
+
+        function setGameplayAudioActive(active) {
+          const next = !!active;
+          if (next && currentLevel() > 0) ensure();
+          if (state.musicActive === next) {
+            if (state.ctx && state.musicBus) applyMusicActivity(false);
+            return;
+          }
+          state.musicActive = next;
+          applyMusicActivity(next);
         }
 
         function disposeNodes(nodes) {
@@ -1538,7 +1563,7 @@
 
         function tick() {
           if (!state.ctx || !state.musicBus || !state.master) return;
-          if (state.ctx.state !== "running" || !isAudible()) return;
+          if (state.ctx.state !== "running" || !isAudible() || !state.musicActive) return;
 
           const now = state.ctx.currentTime;
           const stepLen = stepDuration();
@@ -1613,6 +1638,38 @@
           });
         }
 
+        function playScore(points, combo = 0, byDash = false) {
+          if (!ensure() || !isAudible()) return;
+          const now = state.ctx.currentTime;
+          if (now - state.lastScoreFxTime < 0.035) return;
+          state.lastScoreFxTime = now;
+
+          const comboTier = Math.min(7, Math.floor(combo / 3));
+          const base = byDash ? 430 : 360;
+          const lead = base + Math.min(220, Math.floor(points || 0) * 2) + comboTier * 16;
+          const t = now + 0.002;
+
+          synthTone(state.sfxBus, {
+            time: t,
+            type: byDash ? "sawtooth" : "square",
+            freq: lead,
+            duration: 0.026,
+            gain: byDash ? 0.032 : 0.026,
+            attack: 0.0018,
+            release: 0.022,
+            filter: { type: "lowpass", freq: byDash ? 1800 : 2300, q: 0.4 }
+          });
+          synthTone(state.sfxBus, {
+            time: t + 0.018,
+            type: "triangle",
+            freq: lead * (comboTier >= 2 ? 1.5 : 1.333),
+            duration: 0.03,
+            gain: 0.016 + comboTier * 0.0015,
+            attack: 0.002,
+            release: 0.024
+          });
+        }
+
         function playHit() {
           if (!ensure() || !isAudible()) return;
           const t = state.ctx.currentTime + 0.002;
@@ -1665,18 +1722,55 @@
           });
         }
 
-        function cycleVolume() {
+        function playHighScore() {
+          if (!ensure() || !isAudible()) return;
+          const t = state.ctx.currentTime + 0.18;
+          const notes = [784, 988, 1174, 1568];
+          for (let i = 0; i < notes.length; i += 1) {
+            synthTone(state.sfxBus, {
+              time: t + i * 0.055,
+              type: i % 2 ? "triangle" : "square",
+              freq: notes[i],
+              duration: 0.05,
+              gain: 0.024 + i * 0.004,
+              attack: 0.002,
+              release: 0.04,
+              filter: { type: "lowpass", freq: 2600 + i * 300, q: 0.35 }
+            });
+          }
+          synthTone(state.sfxBus, {
+            time: t + 0.22,
+            type: "sawtooth",
+            freq: 1046,
+            duration: 0.12,
+            gain: 0.018,
+            attack: 0.002,
+            release: 0.07,
+            filter: { type: "lowpass", freq: 2200, q: 0.4 }
+          });
+        }
+
+        function toggleMute() {
           if (!state.supported) {
             updateButton();
             return;
           }
 
-          volumeIndex = (volumeIndex + 1) % volumeLevels.length;
+          const wasMuted = volumeIndex === 0;
+          if (wasMuted) {
+            volumeIndex = lastNonZeroVolumeIndex > 0 ? lastNonZeroVolumeIndex : 2;
+            ensure();
+          } else {
+            if (volumeIndex > 0) lastNonZeroVolumeIndex = volumeIndex;
+            volumeIndex = 0;
+          }
           persistVolume();
-          if (currentLevel() > 0) ensure();
           applyVolume();
+          if (state.ctx && state.musicBus) {
+            applyMusicActivity(wasMuted && state.musicActive);
+          }
           updateButton();
-          if (currentLevel() > 0) playMenu();
+          if (wasMuted && currentLevel() > 0) playMenu();
         }
 
         function handleVisibility() {
@@ -1688,6 +1782,7 @@
           if (currentLevel() > 0) {
             state.nextStepTime = state.ctx.currentTime + 0.06;
             state.ctx.resume().catch(() => {});
+            if (state.musicActive) applyMusicActivity(true);
           }
         }
 
@@ -1695,12 +1790,15 @@
 
         return {
           ensure,
+          setGameplayAudioActive,
           tick,
           playMenu,
           playCollect,
+          playScore,
           playHit,
           playGameOver,
-          cycleVolume,
+          playHighScore,
+          toggleMute,
           updateButton,
           handleVisibility
         };
@@ -2234,8 +2332,11 @@
       function showGameOver() {
         if (!game || game.mode === "gameover") return;
         game.mode = "gameover";
-        audio.playGameOver();
+        audio.setGameplayAudioActive(false);
         const finalScoreValue = Math.max(0, Math.floor(game.score));
+        const isNewBestScore = finalScoreValue > 0 && finalScoreValue > bestScore;
+        audio.playGameOver();
+        if (isNewBestScore) audio.playHighScore();
         const scoreboardMessage = prepareGameOverScoreEntry(finalScoreValue);
         const displayedBestScore = pendingHighScoreScore == null
           ? bestScore
@@ -2682,6 +2783,7 @@
         game.comboTimer = 3.0;
         if (game.combo > game.longestCombo) game.longestCombo = game.combo;
         game.heat = Math.min(1, game.heat + (byDash ? 0.12 : 0.06));
+        audio.playScore(gained, game.combo, byDash);
 
         spawnEnemyExplosion(enemy, byDash);
         addRipple(enemy.x, enemy.y, {
@@ -3405,6 +3507,7 @@
           }
         }
 
+        audio.setGameplayAudioActive(!!(game && game.mode === "running"));
         audio.tick();
         renderFrame();
         rafId = requestAnimationFrame(loop);
@@ -3565,7 +3668,7 @@
       });
       if (ui.audioToggleBtn) {
         ui.audioToggleBtn.addEventListener("click", () => {
-          audio.cycleVolume();
+          audio.toggleMute();
         });
       }
       ui.menuMuteBtn.addEventListener("click", () => {
