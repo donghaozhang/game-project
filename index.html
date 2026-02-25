@@ -548,6 +548,147 @@
       color: var(--cyan);
     }
 
+    .scoreboardSection {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .scoreboardHeader {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .scoreboardHeader .pickerLabel {
+      margin: 0;
+    }
+
+    .scoreboardMeta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      line-height: 1.3;
+    }
+
+    .scoreboardList {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .scoreboardItem {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .scoreboardRank {
+      min-width: 2.2em;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .scoreboardInitials {
+      font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+      letter-spacing: 0.14em;
+      color: var(--cyan);
+      font-size: 13px;
+      min-width: 4ch;
+    }
+
+    .scoreboardScore {
+      justify-self: end;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .scoreboardEmpty {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px dashed rgba(255,255,255,0.1);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .scoreEntryForm {
+      margin: 0 0 10px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(94, 242, 255, 0.14);
+      background: rgba(94, 242, 255, 0.035);
+      display: grid;
+      gap: 8px;
+    }
+
+    .scoreEntryForm[hidden] {
+      display: none;
+    }
+
+    .scoreEntryForm .pickerLabel {
+      margin: 0;
+    }
+
+    .scoreEntryRow {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .scoreEntryInput {
+      min-width: 0;
+      flex: 1 1 120px;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .scoreEntryInput::placeholder {
+      color: rgba(159, 196, 216, 0.5);
+      letter-spacing: 0.18em;
+    }
+
+    .scoreEntryInput:focus-visible {
+      outline: 2px solid rgba(94, 242, 255, 0.7);
+      outline-offset: 2px;
+    }
+
+    .scoreEntrySaveBtn {
+      min-width: 110px;
+      padding-inline: 12px;
+    }
+
+    .scoreEntryHint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      letter-spacing: 0.02em;
+    }
+
     .touchControls {
       position: fixed;
       left: 0;
@@ -953,6 +1094,33 @@
           <span class="value" id="bestScore">0</span>
         </div>
       </div>
+      <section class="scoreboardSection" aria-labelledby="scoreboardTitle">
+        <div class="scoreboardHeader">
+          <span class="pickerLabel" id="scoreboardTitle">Top 5 Local Scores</span>
+          <p class="scoreboardMeta" id="scoreboardMeta">Finish a run to add your initials to the board.</p>
+        </div>
+        <form class="scoreEntryForm" id="scoreEntryForm" hidden>
+          <label class="pickerLabel" for="scoreEntryInitials">Save This Run</label>
+          <div class="scoreEntryRow">
+            <input
+              class="scoreEntryInput"
+              id="scoreEntryInitials"
+              type="text"
+              inputmode="text"
+              maxlength="3"
+              placeholder="AAA"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              enterkeyhint="done"
+              aria-describedby="scoreboardMeta"
+            >
+            <button class="secondaryBtn scoreEntrySaveBtn" id="scoreEntrySaveBtn" type="submit">Save Score</button>
+          </div>
+          <p class="scoreEntryHint">Enter 1-3 letters. Scores are stored locally in this browser.</p>
+        </form>
+        <ol class="scoreboardList" id="scoreboardList" aria-live="polite"></ol>
+      </section>
       <div class="actions">
         <button class="primaryBtn" id="restartBtn" type="button">Restart</button>
         <button class="secondaryBtn" id="backToMenuBtn" type="button">Main Menu</button>
@@ -994,6 +1162,11 @@
         finalScore: document.getElementById("finalScore"),
         finalCombo: document.getElementById("finalCombo"),
         bestScore: document.getElementById("bestScore"),
+        scoreboardList: document.getElementById("scoreboardList"),
+        scoreboardMeta: document.getElementById("scoreboardMeta"),
+        scoreEntryForm: document.getElementById("scoreEntryForm"),
+        scoreEntryInitialsInput: document.getElementById("scoreEntryInitials"),
+        scoreEntrySaveBtn: document.getElementById("scoreEntrySaveBtn"),
         touchControls: document.getElementById("touchControls"),
         touchDashBtn: document.getElementById("touchDashBtn"),
         touchMoveButtons: Array.from(document.querySelectorAll("[data-touch-key]"))
@@ -1074,12 +1247,10 @@
       });
 
       const bestScoreKey = "neon-core-rush-best-score";
-      let bestScore = 0;
-      try {
-        bestScore = Number(localStorage.getItem(bestScoreKey)) || 0;
-      } catch (_) {
-        bestScore = 0;
-      }
+      const highScoresKey = "neon-core-rush-high-scores-v1";
+      const lastInitialsKey = "neon-core-rush-last-initials";
+      let highScores = loadHighScores();
+      let bestScore = highScores.length ? highScores[0].score : 0;
       const audioVolumeKey = "neon-core-rush-audio-volume";
 
       function createAudioSystem() {
@@ -1542,6 +1713,7 @@
       let bannerTimeout = 0;
       let rafId = 0;
       const dashTouchPointers = new Set();
+      let pendingHighScoreScore = null;
 
       function rand(min, max) {
         return Math.random() * (max - min) + min;
@@ -1563,6 +1735,236 @@
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+      }
+
+      function sanitizeInitialsDraft(value) {
+        return String(value || "")
+          .toUpperCase()
+          .replace(/[^A-Z]/g, "")
+          .slice(0, 3);
+      }
+
+      function sanitizeInitials(value) {
+        return sanitizeInitialsDraft(value) || "AAA";
+      }
+
+      function normalizeHighScoreEntry(entry) {
+        if (!entry || typeof entry !== "object") return null;
+        const rawScore = Number(entry.score);
+        const rawCreatedAt = Number(entry.createdAt);
+        const score = Number.isFinite(rawScore)
+          ? Math.max(0, Math.floor(rawScore))
+          : 0;
+        const createdAt = Number.isFinite(rawCreatedAt) ? rawCreatedAt : 0;
+        return {
+          initials: sanitizeInitials(entry.initials),
+          score,
+          createdAt
+        };
+      }
+
+      function sortHighScores(entries) {
+        return entries
+          .filter(Boolean)
+          .sort((a, b) => (b.score - a.score) || (a.createdAt - b.createdAt))
+          .slice(0, 5);
+      }
+
+      function loadHighScores() {
+        let loaded = [];
+        try {
+          const raw = localStorage.getItem(highScoresKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              loaded = sortHighScores(parsed.map(normalizeHighScoreEntry));
+            }
+          }
+        } catch (_) {
+          loaded = [];
+        }
+
+        if (!loaded.length) {
+          try {
+            const rawLegacyBest = Number(localStorage.getItem(bestScoreKey));
+            const legacyBest = Number.isFinite(rawLegacyBest)
+              ? Math.max(0, Math.floor(rawLegacyBest))
+              : 0;
+            if (legacyBest > 0) {
+              loaded = [{ initials: "AAA", score: legacyBest, createdAt: 0 }];
+            }
+          } catch (_) {
+            loaded = [];
+          }
+        }
+
+        return loaded;
+      }
+
+      function persistHighScores() {
+        highScores = sortHighScores(highScores);
+        bestScore = highScores.length ? highScores[0].score : 0;
+        try {
+          localStorage.setItem(highScoresKey, JSON.stringify(highScores));
+        } catch (_) {
+          /* ignore storage failures */
+        }
+        try {
+          localStorage.setItem(bestScoreKey, String(bestScore));
+        } catch (_) {
+          /* ignore storage failures */
+        }
+      }
+
+      function getPreferredInitials() {
+        try {
+          return sanitizeInitials(localStorage.getItem(lastInitialsKey));
+        } catch (_) {
+          return "AAA";
+        }
+      }
+
+      function persistPreferredInitials(initials) {
+        try {
+          localStorage.setItem(lastInitialsKey, sanitizeInitials(initials));
+        } catch (_) {
+          /* ignore storage failures */
+        }
+      }
+
+      function qualifiesForHighScores(score) {
+        if (!Number.isFinite(score) || score <= 0) return false;
+        if (highScores.length < 5) return true;
+        const cutoff = highScores[highScores.length - 1];
+        return !!cutoff && score > cutoff.score;
+      }
+
+      function renderScoreboard(message) {
+        if (!ui.scoreboardList) return;
+
+        const list = ui.scoreboardList;
+        list.textContent = "";
+
+        if (!highScores.length) {
+          const emptyItem = document.createElement("li");
+          emptyItem.className = "scoreboardEmpty";
+          emptyItem.textContent = "No saved scores yet. Reach the top 5 after a run to store your initials on this device.";
+          list.appendChild(emptyItem);
+        } else {
+          for (let i = 0; i < highScores.length; i += 1) {
+            const entry = highScores[i];
+            const item = document.createElement("li");
+            item.className = "scoreboardItem";
+
+            const rank = document.createElement("span");
+            rank.className = "scoreboardRank";
+            rank.textContent = "#" + String(i + 1);
+
+            const initials = document.createElement("span");
+            initials.className = "scoreboardInitials";
+            initials.textContent = entry.initials;
+
+            const scoreText = document.createElement("span");
+            scoreText.className = "scoreboardScore";
+            scoreText.textContent = entry.score.toLocaleString();
+
+            item.appendChild(rank);
+            item.appendChild(initials);
+            item.appendChild(scoreText);
+            list.appendChild(item);
+          }
+        }
+
+        if (!ui.scoreboardMeta) return;
+        if (message) {
+          ui.scoreboardMeta.textContent = message;
+          return;
+        }
+        ui.scoreboardMeta.textContent = highScores.length
+          ? "Top 5 runs are saved in localStorage for this browser."
+          : "Finish a run to add your initials to the board.";
+      }
+
+      function setScoreEntryFormVisible(visible) {
+        if (!ui.scoreEntryForm) return;
+        ui.scoreEntryForm.hidden = !visible;
+      }
+
+      function focusScoreEntryForm() {
+        if (!ui.scoreEntryInitialsInput || pendingHighScoreScore == null) return;
+        window.requestAnimationFrame(() => {
+          if (!ui.scoreEntryInitialsInput || pendingHighScoreScore == null) return;
+          try {
+            ui.scoreEntryInitialsInput.focus({ preventScroll: true });
+          } catch (_) {
+            ui.scoreEntryInitialsInput.focus();
+          }
+          ui.scoreEntryInitialsInput.select();
+        });
+      }
+
+      function clearPendingHighScoreScore() {
+        pendingHighScoreScore = null;
+        setScoreEntryFormVisible(false);
+      }
+
+      function getScoreboardCutoffMessage(score) {
+        if (!qualifiesForHighScores(score)) {
+          if (score <= 0) return "Scoreboard saves top 5 runs with initials (scores above 0).";
+          const cutoff = highScores.length >= 5 ? highScores[highScores.length - 1].score : 0;
+          return "Top 5 cutoff: " + cutoff.toLocaleString() + ".";
+        }
+        return "";
+      }
+
+      function prepareGameOverScoreEntry(score) {
+        if (!qualifiesForHighScores(score)) {
+          clearPendingHighScoreScore();
+          return getScoreboardCutoffMessage(score);
+        }
+
+        if (!ui.scoreEntryForm || !ui.scoreEntryInitialsInput) {
+          return saveGameOverScore(score, getPreferredInitials());
+        }
+
+        pendingHighScoreScore = score;
+        ui.scoreEntryInitialsInput.value = getPreferredInitials();
+        setScoreEntryFormVisible(true);
+        return "Top 5 run! Enter initials to save (or restart/menu to save automatically).";
+      }
+
+      function saveGameOverScore(score, initials) {
+        const safeInitials = sanitizeInitials(initials);
+        persistPreferredInitials(safeInitials);
+
+        highScores.push({
+          initials: safeInitials,
+          score,
+          createdAt: Date.now()
+        });
+        persistHighScores();
+
+        return "Saved " + safeInitials + " • " + Math.floor(score).toLocaleString() + ".";
+      }
+
+      function submitPendingHighScoreScore() {
+        if (pendingHighScoreScore == null) return "";
+
+        const scoreToSave = pendingHighScoreScore;
+        const initialsValue = ui.scoreEntryInitialsInput
+          ? ui.scoreEntryInitialsInput.value
+          : getPreferredInitials();
+        const message = saveGameOverScore(scoreToSave, initialsValue);
+
+        clearPendingHighScoreScore();
+        ui.bestScore.textContent = String(Math.floor(bestScore));
+        renderScoreboard(message);
+        return message;
+      }
+
+      function flushPendingHighScoreScore() {
+        if (pendingHighScoreScore == null) return "";
+        return submitPendingHighScoreScore();
       }
 
       function getViewportSize() {
@@ -1805,6 +2207,7 @@
       }
 
       function resetRun() {
+        flushPendingHighScoreScore();
         game = freshGameState();
         game.mode = "running";
         const snapshot = applyProgressionState(game);
@@ -1812,14 +2215,18 @@
         showWaveBanner("Wave " + snapshot.wave + " • " + snapshot.tierLabel);
         ui.menuOverlay.classList.remove("show");
         ui.gameOverOverlay.classList.remove("show");
+        clearPendingHighScoreScore();
         syncTouchControls();
         updateHud();
       }
 
       function backToMenu() {
+        flushPendingHighScoreScore();
         game = freshGameState();
         ui.menuOverlay.classList.add("show");
         ui.gameOverOverlay.classList.remove("show");
+        clearPendingHighScoreScore();
+        renderScoreboard();
         syncTouchControls();
         updateHud();
       }
@@ -1828,19 +2235,18 @@
         if (!game || game.mode === "gameover") return;
         game.mode = "gameover";
         audio.playGameOver();
-        if (game.score > bestScore) {
-          bestScore = game.score;
-          try {
-            localStorage.setItem(bestScoreKey, String(bestScore));
-          } catch (_) {
-            /* ignore storage failures */
-          }
-        }
+        const finalScoreValue = Math.max(0, Math.floor(game.score));
+        const scoreboardMessage = prepareGameOverScoreEntry(finalScoreValue);
+        const displayedBestScore = pendingHighScoreScore == null
+          ? bestScore
+          : Math.max(bestScore, finalScoreValue);
 
-        ui.finalScore.textContent = String(Math.floor(game.score));
+        ui.finalScore.textContent = String(finalScoreValue);
         ui.finalCombo.textContent = "x" + (1 + game.longestCombo * 0.18).toFixed(1);
-        ui.bestScore.textContent = String(Math.floor(bestScore));
+        ui.bestScore.textContent = String(Math.floor(displayedBestScore));
+        renderScoreboard(scoreboardMessage);
         ui.gameOverOverlay.classList.add("show");
+        if (pendingHighScoreScore != null) focusScoreEntryForm();
         syncTouchControls();
       }
 
@@ -3052,16 +3458,48 @@
       ui.touchDashBtn.addEventListener("lostpointercapture", releaseDashTouch);
       ui.touchDashBtn.addEventListener("contextmenu", (event) => event.preventDefault());
 
+      if (ui.scoreEntryInitialsInput) {
+        ui.scoreEntryInitialsInput.addEventListener("input", () => {
+          const cleaned = sanitizeInitialsDraft(ui.scoreEntryInitialsInput.value);
+          if (ui.scoreEntryInitialsInput.value !== cleaned) {
+            ui.scoreEntryInitialsInput.value = cleaned;
+          }
+        });
+      }
+
+      if (ui.scoreEntryForm) {
+        ui.scoreEntryForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (pendingHighScoreScore == null) return;
+          audio.ensure();
+          audio.playMenu();
+          submitPendingHighScoreScore();
+        });
+      }
+
       window.addEventListener("keydown", (event) => {
-        preventScrollKeys(event);
+        const scoreEntryIsActive = !!(
+          ui.scoreEntryForm &&
+          !ui.scoreEntryForm.hidden &&
+          event.target instanceof HTMLElement &&
+          ui.scoreEntryForm.contains(event.target)
+        );
+        if (!scoreEntryIsActive) {
+          preventScrollKeys(event);
+        }
         audio.ensure();
-        input.keys[event.code] = true;
+        if (!scoreEntryIsActive) {
+          input.keys[event.code] = true;
+        }
 
         if (event.code === "Space") {
           if (game && game.mode === "running") queueDash();
         }
 
         if (event.code === "Enter") {
+          if (scoreEntryIsActive) {
+            return;
+          }
           if (game && game.mode === "gameover") {
             audio.playMenu();
             resetRun();
