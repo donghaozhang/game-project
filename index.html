@@ -1739,7 +1739,7 @@
         if (!Number.isFinite(score) || score <= 0) return false;
         if (highScores.length < 5) return true;
         const cutoff = highScores[highScores.length - 1];
-        return !!cutoff && score >= cutoff.score;
+        return !!cutoff && score > cutoff.score;
       }
 
       function renderScoreboard(message) {
@@ -1811,7 +1811,7 @@
 
         highScores.push({
           initials,
-          score: Math.max(0, Math.floor(score)),
+          score,
           createdAt: Date.now()
         });
         persistHighScores();
@@ -2085,7 +2085,6 @@
         audio.playGameOver();
         const finalScoreValue = Math.max(0, Math.floor(game.score));
         const scoreboardMessage = saveGameOverScore(finalScoreValue);
-        bestScore = Math.max(bestScore, finalScoreValue, highScores.length ? highScores[0].score : 0);
 
         ui.finalScore.textContent = String(finalScoreValue);
         ui.finalCombo.textContent = "x" + (1 + game.longestCombo * 0.18).toFixed(1);
