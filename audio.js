@@ -8,9 +8,12 @@ function createAudioSystem() {
   let volumeIndex = 2;
 
   try {
-    const stored = Number(localStorage.getItem(audioVolumeKey));
-    if (Number.isInteger(stored) && stored >= 0 && stored < volumeLevels.length) {
-      volumeIndex = stored;
+    const storedRaw = localStorage.getItem(audioVolumeKey);
+    if (storedRaw != null && storedRaw !== "") {
+      const stored = Number(storedRaw);
+      if (Number.isInteger(stored) && stored >= 0 && stored < volumeLevels.length) {
+        volumeIndex = stored;
+      }
     }
   } catch (_) {
     volumeIndex = 2;
