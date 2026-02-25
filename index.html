@@ -1786,7 +1786,10 @@
 
         if (!loaded.length) {
           try {
-            const legacyBest = Math.max(0, Math.floor(Number(localStorage.getItem(bestScoreKey)) || 0));
+            const rawLegacyBest = Number(localStorage.getItem(bestScoreKey));
+            const legacyBest = Number.isFinite(rawLegacyBest)
+              ? Math.max(0, Math.floor(rawLegacyBest))
+              : 0;
             if (legacyBest > 0) {
               loaded = [{ initials: "AAA", score: legacyBest, createdAt: 0 }];
             }
