@@ -1393,11 +1393,9 @@
 
         function setGameplayAudioActive(active) {
           const next = !!active;
+          if (state.musicActive === next) return;
+
           if (next && currentLevel() > 0) ensure();
-          if (state.musicActive === next) {
-            if (state.ctx && state.musicBus) applyMusicActivity(false);
-            return;
-          }
           state.musicActive = next;
           applyMusicActivity(next);
         }
