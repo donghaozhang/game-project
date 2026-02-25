@@ -1750,11 +1750,16 @@
 
       function normalizeHighScoreEntry(entry) {
         if (!entry || typeof entry !== "object") return null;
-        const score = Math.max(0, Math.floor(Number(entry.score) || 0));
+        const rawScore = Number(entry.score);
+        const rawCreatedAt = Number(entry.createdAt);
+        const score = Number.isFinite(rawScore)
+          ? Math.max(0, Math.floor(rawScore))
+          : 0;
+        const createdAt = Number.isFinite(rawCreatedAt) ? rawCreatedAt : 0;
         return {
           initials: sanitizeInitials(entry.initials),
           score,
-          createdAt: Number(entry.createdAt) || 0
+          createdAt
         };
       }
 
@@ -3470,14 +3475,16 @@
       }
 
       window.addEventListener("keydown", (event) => {
-        preventScrollKeys(event);
-        audio.ensure();
         const scoreEntryIsActive = !!(
           ui.scoreEntryForm &&
           !ui.scoreEntryForm.hidden &&
           event.target instanceof HTMLElement &&
           ui.scoreEntryForm.contains(event.target)
         );
+        if (!scoreEntryIsActive) {
+          preventScrollKeys(event);
+        }
+        audio.ensure();
         if (!scoreEntryIsActive) {
           input.keys[event.code] = true;
         }
