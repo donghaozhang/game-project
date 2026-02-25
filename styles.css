@@ -307,10 +307,10 @@ body.touchUi canvas {
 .waveBanner.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
-  animation: pulseBanner 0.8s ease;
+  animation: pulse-banner 0.8s ease;
 }
 
-@keyframes pulseBanner {
+@keyframes pulse-banner {
   0% { box-shadow: 0 0 0 rgba(94, 242, 255, 0.0); }
   40% { box-shadow: 0 0 34px rgba(94, 242, 255, 0.28); }
   100% { box-shadow: 0 10px 28px rgba(0,0,0,0.3); }
@@ -930,5 +930,9 @@ body.touchUi.touchUiVisible .touchControls {
   .touchControls,
   .touchBtn {
     transition: none;
+  }
+
+  .waveBanner.show {
+    animation: none;
   }
 }

@@ -334,10 +334,6 @@ function spawnEnemyExplosion(enemy, byDash) {
   addScreenShake((byDash ? 4.8 : 2.8) + enemy.r * 0.08);
 }
 
-function currentWaveFromTime() {
-  return 1 + Math.floor(game.time / 16);
-}
-
 function spawnEnemy(typeOverride) {
   const side = Math.floor(Math.random() * 4);
   const margin = 40;
@@ -1431,16 +1427,22 @@ for (let i = 0; i < ui.difficultyButtons.length; i += 1) {
   });
 }
 
+function playMenuSound() {
+  if (typeof audio === "undefined") return;
+  audio.ensure();
+  audio.playMenu();
+}
+
 ui.startBtn.addEventListener("click", () => {
-  if (typeof audio !== "undefined") { audio.ensure(); audio.playMenu(); }
+  playMenuSound();
   resetRun();
 });
 ui.restartBtn.addEventListener("click", () => {
-  if (typeof audio !== "undefined") { audio.ensure(); audio.playMenu(); }
+  playMenuSound();
   resetRun();
 });
 ui.backToMenuBtn.addEventListener("click", () => {
-  if (typeof audio !== "undefined") { audio.ensure(); audio.playMenu(); }
+  playMenuSound();
   backToMenu();
 });
 if (ui.audioToggleBtn) {

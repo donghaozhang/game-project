@@ -9,7 +9,7 @@ function createAudioSystem() {
 
   try {
     const stored = Number(localStorage.getItem(audioVolumeKey));
-    if (Number.isFinite(stored) && stored >= 0 && stored < volumeLevels.length) {
+    if (Number.isInteger(stored) && stored >= 0 && stored < volumeLevels.length) {
       volumeIndex = stored;
     }
   } catch (_) {
@@ -162,7 +162,7 @@ function createAudioSystem() {
     const when = Math.max(opts.time ?? state.ctx.currentTime, state.ctx.currentTime);
     const osc = state.ctx.createOscillator();
     const amp = state.ctx.createGain();
-    let finalNode = amp;
+    const finalNode = amp;
     let filter = null;
 
     osc.type = opts.type || "square";
